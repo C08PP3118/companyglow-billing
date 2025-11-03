@@ -7,7 +7,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2 } from "lucide-react";
+import { Loader2, Plus, Trash2 } from "lucide-react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 interface VoucherFormProps {
   type: "sales" | "purchase" | "receipt" | "payment";
@@ -15,10 +16,19 @@ interface VoucherFormProps {
   onClose: () => void;
 }
 
+interface VoucherItem {
+  item_id: string;
+  quantity: string;
+  rate: string;
+  amount: number;
+}
+
 const VoucherForm = ({ type, companyId, onClose }: VoucherFormProps) => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [parties, setParties] = useState<any[]>([]);
+  const [items, setItems] = useState<any[]>([]);
+  const [voucherItems, setVoucherItems] = useState<VoucherItem[]>([]);
   const [formData, setFormData] = useState({
     party_id: "",
     voucher_number: "",
@@ -27,9 +37,13 @@ const VoucherForm = ({ type, companyId, onClose }: VoucherFormProps) => {
     narration: "",
   });
 
+  const showItems = type === "sales" || type === "purchase";
+
   useEffect(() => {
     loadParties();
+    loadItems();
     generateVoucherNumber();
+    setVoucherItems([]);
   }, [type]);
 
   const loadParties = async () => {
@@ -41,6 +55,15 @@ const VoucherForm = ({ type, companyId, onClose }: VoucherFormProps) => {
       .eq("type", partyType);
     
     setParties(data || []);
+  };
+
+  const loadItems = async () => {
+    const { data } = await supabase
+      .from("items")
+      .select("*")
+      .eq("company_id", companyId);
+    
+    setItems(data || []);
   };
 
   const generateVoucherNumber = async () => {
@@ -65,6 +88,46 @@ const VoucherForm = ({ type, companyId, onClose }: VoucherFormProps) => {
     }));
   };
 
+  const addVoucherItem = () => {
+    setVoucherItems([...voucherItems, { item_id: "", quantity: "", rate: "", amount: 0 }]);
+  };
+
+  const removeVoucherItem = (index: number) => {
+    setVoucherItems(voucherItems.filter((_, i) => i !== index));
+  };
+
+  const updateVoucherItem = (index: number, field: keyof VoucherItem, value: string) => {
+    const newItems = [...voucherItems];
+    newItems[index] = { ...newItems[index], [field]: value };
+    
+    if (field === "quantity" || field === "rate") {
+      const quantity = parseFloat(newItems[index].quantity) || 0;
+      const rate = parseFloat(newItems[index].rate) || 0;
+      newItems[index].amount = quantity * rate;
+    }
+    
+    if (field === "item_id") {
+      const selectedItem = items.find(item => item.id === value);
+      if (selectedItem) {
+        newItems[index].rate = selectedItem.rate.toString();
+        const quantity = parseFloat(newItems[index].quantity) || 0;
+        newItems[index].amount = quantity * selectedItem.rate;
+      }
+    }
+    
+    setVoucherItems(newItems);
+  };
+
+  const calculateTotal = () => {
+    return voucherItems.reduce((sum, item) => sum + item.amount, 0);
+  };
+
+  useEffect(() => {
+    if (showItems) {
+      setFormData(prev => ({ ...prev, amount: calculateTotal().toString() }));
+    }
+  }, [voucherItems]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -73,7 +136,9 @@ const VoucherForm = ({ type, companyId, onClose }: VoucherFormProps) => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
 
-      const { error } = await supabase
+      const totalAmount = showItems ? calculateTotal() : parseFloat(formData.amount);
+
+      const { data: voucherData, error: voucherError } = await supabase
         .from("vouchers")
         .insert([{
           user_id: session.user.id,
@@ -82,27 +147,39 @@ const VoucherForm = ({ type, companyId, onClose }: VoucherFormProps) => {
           voucher_number: formData.voucher_number,
           type: type,
           date: formData.date,
-          amount: parseFloat(formData.amount),
+          amount: totalAmount,
           narration: formData.narration,
-        }]);
+        }])
+        .select()
+        .single();
 
-      if (error) {
-        toast({
-          title: "Error",
-          description: error.message,
-          variant: "destructive",
-        });
-      } else {
-        toast({
-          title: "Success",
-          description: "Voucher created successfully!",
-        });
-        onClose();
+      if (voucherError) throw voucherError;
+
+      if (showItems && voucherItems.length > 0) {
+        const itemsToInsert = voucherItems.map(item => ({
+          voucher_id: voucherData.id,
+          item_id: item.item_id,
+          quantity: parseFloat(item.quantity),
+          rate: parseFloat(item.rate),
+          amount: item.amount,
+        }));
+
+        const { error: itemsError } = await supabase
+          .from("voucher_items")
+          .insert(itemsToInsert);
+
+        if (itemsError) throw itemsError;
       }
-    } catch (error) {
+
+      toast({
+        title: "Success",
+        description: "Voucher created successfully!",
+      });
+      onClose();
+    } catch (error: any) {
       toast({
         title: "Error",
-        description: "Failed to create voucher",
+        description: error.message || "Failed to create voucher",
         variant: "destructive",
       });
     } finally {
@@ -158,18 +235,101 @@ const VoucherForm = ({ type, companyId, onClose }: VoucherFormProps) => {
             </Select>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="amount">Amount</Label>
-            <Input
-              id="amount"
-              type="number"
-              step="0.01"
-              placeholder="0.00"
-              value={formData.amount}
-              onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-              required
-            />
-          </div>
+          {showItems ? (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <Label>Items</Label>
+                <Button type="button" size="sm" onClick={addVoucherItem}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Item
+                </Button>
+              </div>
+              
+              {voucherItems.length > 0 && (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Item</TableHead>
+                      <TableHead>Quantity</TableHead>
+                      <TableHead>Rate</TableHead>
+                      <TableHead>Amount</TableHead>
+                      <TableHead></TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {voucherItems.map((item, index) => (
+                      <TableRow key={index}>
+                        <TableCell>
+                          <Select
+                            value={item.item_id}
+                            onValueChange={(value) => updateVoucherItem(index, "item_id", value)}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select item" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {items.map((i) => (
+                                <SelectItem key={i.id} value={i.id}>
+                                  {i.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
+                        <TableCell>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            placeholder="0"
+                            value={item.quantity}
+                            onChange={(e) => updateVoucherItem(index, "quantity", e.target.value)}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            placeholder="0.00"
+                            value={item.rate}
+                            onChange={(e) => updateVoucherItem(index, "rate", e.target.value)}
+                          />
+                        </TableCell>
+                        <TableCell>₹{item.amount.toFixed(2)}</TableCell>
+                        <TableCell>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeVoucherItem(index)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    <TableRow>
+                      <TableCell colSpan={3} className="text-right font-bold">Total</TableCell>
+                      <TableCell className="font-bold">₹{calculateTotal().toFixed(2)}</TableCell>
+                      <TableCell></TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <Label htmlFor="amount">Amount</Label>
+              <Input
+                id="amount"
+                type="number"
+                step="0.01"
+                placeholder="0.00"
+                value={formData.amount}
+                onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                required
+              />
+            </div>
+          )}
 
           <div className="space-y-2">
             <Label htmlFor="narration">Narration</Label>

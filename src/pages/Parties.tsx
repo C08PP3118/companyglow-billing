@@ -3,14 +3,16 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus } from "lucide-react";
-import ItemForm from "@/components/inventory/ItemForm";
-import ItemList from "@/components/inventory/ItemList";
+import PartyForm from "@/components/parties/PartyForm";
+import PartyList from "@/components/parties/PartyList";
 
-const Inventory = () => {
+const Parties = () => {
   const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState("customer");
   const [showForm, setShowForm] = useState(false);
-  const [editingItem, setEditingItem] = useState<any>(null);
+  const [editingParty, setEditingParty] = useState<any>(null);
   const [companyId, setCompanyId] = useState<string>("");
 
   useEffect(() => {
@@ -40,14 +42,14 @@ const Inventory = () => {
     setCompanyId(companies.id);
   };
 
-  const handleEdit = (item: any) => {
-    setEditingItem(item);
+  const handleEdit = (party: any) => {
+    setEditingParty(party);
     setShowForm(true);
   };
 
   const handleCloseForm = () => {
     setShowForm(false);
-    setEditingItem(null);
+    setEditingParty(null);
   };
 
   return (
@@ -55,23 +57,37 @@ const Inventory = () => {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Inventory</h1>
+            <h1 className="text-3xl font-bold tracking-tight">Parties</h1>
             <p className="text-muted-foreground">
-              Manage your items and stock levels
+              Manage your customers and suppliers
             </p>
           </div>
           <Button onClick={() => setShowForm(true)}>
             <Plus className="h-4 w-4 mr-2" />
-            Add Item
+            Add Party
           </Button>
         </div>
 
-        <ItemList companyId={companyId} onEdit={handleEdit} />
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="customer">Customers</TabsTrigger>
+            <TabsTrigger value="supplier">Suppliers</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="customer" className="space-y-4">
+            <PartyList type="customer" companyId={companyId} onEdit={handleEdit} />
+          </TabsContent>
+          
+          <TabsContent value="supplier" className="space-y-4">
+            <PartyList type="supplier" companyId={companyId} onEdit={handleEdit} />
+          </TabsContent>
+        </Tabs>
 
         {showForm && (
-          <ItemForm
+          <PartyForm
+            type={activeTab as "customer" | "supplier"}
             companyId={companyId}
-            item={editingItem}
+            party={editingParty}
             onClose={handleCloseForm}
           />
         )}
@@ -80,4 +96,4 @@ const Inventory = () => {
   );
 };
 
-export default Inventory;
+export default Parties;

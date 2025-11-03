@@ -22,10 +22,12 @@ import {
   Package, 
   LogOut,
   Building2,
+  Users,
 } from "lucide-react";
 
 const menuItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
+  { title: "Parties", url: "/parties", icon: Users },
   { title: "Vouchers", url: "/vouchers", icon: FileText },
   { title: "Ledger", url: "/ledger", icon: BookOpen },
   { title: "Inventory", url: "/inventory", icon: Package },
