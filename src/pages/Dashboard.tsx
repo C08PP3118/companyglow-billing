@@ -20,6 +20,7 @@ interface DashboardStats {
 }
 
 interface Company {
+  id: string;
   name: string;
   email: string;
   mobile_number: string;
@@ -41,6 +42,41 @@ const Dashboard = () => {
   useEffect(() => {
     checkAuth();
   }, []);
+
+  useEffect(() => {
+    if (!company) return;
+
+    let channel: any;
+
+    const setupRealtime = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session || !company) return;
+
+      channel = supabase
+        .channel('dashboard-vouchers')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'vouchers',
+            filter: `company_id=eq.${company.id}`,
+          },
+          () => {
+            loadDashboardData(session.user.id, company.id);
+          }
+        )
+        .subscribe();
+    };
+
+    setupRealtime();
+
+    return () => {
+      if (channel) {
+        supabase.removeChannel(channel);
+      }
+    };
+  }, [company]);
 
   const checkAuth = async () => {
     const { data: { session } } = await supabase.auth.getSession();

@@ -58,6 +58,12 @@ All colors MUST be HSL.
     --shadow-card: 0 2px 8px hsl(220 15% 15% / 0.08);
     --shadow-elevated: 0 4px 16px hsl(220 15% 15% / 0.12);
     --transition-base: all 0.2s ease;
+
+    --chart-1: 217 91% 60%;
+    --chart-2: 158 64% 52%;
+    --chart-3: 43 74% 66%;
+    --chart-4: 0 84% 60%;
+    --chart-5: 280 65% 60%;
   }
 
   .dark {
@@ -109,6 +115,12 @@ All colors MUST be HSL.
     --shadow-card: 0 2px 8px hsl(0 0% 0% / 0.3);
     --shadow-elevated: 0 4px 16px hsl(0 0% 0% / 0.4);
     --transition-base: all 0.2s ease;
+
+    --chart-1: 217 91% 60%;
+    --chart-2: 158 64% 52%;
+    --chart-3: 43 74% 66%;
+    --chart-4: 0 84% 60%;
+    --chart-5: 280 65% 60%;
   }
 }
 

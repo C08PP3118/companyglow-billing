@@ -22,13 +22,17 @@ import {
   Package, 
   LogOut,
   Building2,
+  Users,
+  BarChart3,
 } from "lucide-react";
 
 const menuItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
+  { title: "Parties", url: "/parties", icon: Users },
   { title: "Vouchers", url: "/vouchers", icon: FileText },
   { title: "Ledger", url: "/ledger", icon: BookOpen },
   { title: "Inventory", url: "/inventory", icon: Package },
+  { title: "Reports", url: "/reports", icon: BarChart3 },
 ];
 
 interface DashboardLayoutProps {
