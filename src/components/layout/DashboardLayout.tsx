@@ -23,6 +23,7 @@ import {
   LogOut,
   Building2,
   Users,
+  BarChart3,
 } from "lucide-react";
 
 const menuItems = [
@@ -31,6 +32,7 @@ const menuItems = [
   { title: "Vouchers", url: "/vouchers", icon: FileText },
   { title: "Ledger", url: "/ledger", icon: BookOpen },
   { title: "Inventory", url: "/inventory", icon: Package },
+  { title: "Reports", url: "/reports", icon: BarChart3 },
 ];
 
 interface DashboardLayoutProps {
