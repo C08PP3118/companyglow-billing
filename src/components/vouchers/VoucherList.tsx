@@ -55,7 +55,8 @@ const VoucherList = ({ type, companyId }: VoucherListProps) => {
     }
 
     let itemsTable = "";
-    if ((type === "sales" || type === "purchase") && voucher.voucher_items.length > 0) {
+    if (type === "sales" || type === "purchase") {
+      // Table for sales/purchase vouchers
       const itemsRows = voucher.voucher_items
         .map(
           (item: any) => `
@@ -70,21 +71,42 @@ const VoucherList = ({ type, companyId }: VoucherListProps) => {
         .join("");
 
       itemsTable = `
-        <h2>Items</h2>
         <table>
           <thead>
             <tr>
               <th>Item Name</th>
               <th style="text-align: right;">Quantity</th>
               <th style="text-align: right;">Rate</th>
-              <th style="text-align: right;">Total</th>
+              <th style="text-align: right;">Amount</th>
             </tr>
           </thead>
           <tbody>
             ${itemsRows}
             <tr>
               <td colspan="3" style="text-align: right; font-weight: bold;">Grand Total</td>
-              <td style="text-align: right; font-weight: bold;">${Number(voucher.amount).toFixed(2)}</td>
+              <td style="text-align: right; font-weight: bold;">₹${Number(voucher.amount).toFixed(2)}</td>
+            </tr>
+          </tbody>
+        </table>
+      `;
+    } else {
+      // Table for receipt/payment vouchers
+      itemsTable = `
+        <table>
+          <thead>
+            <tr>
+              <th>Particulars</th>
+              <th style="text-align: right;">Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>${type.charAt(0).toUpperCase() + type.slice(1)} from ${voucher.parties.name}</td>
+              <td style="text-align: right;">₹${Number(voucher.amount).toFixed(2)}</td>
+            </tr>
+            <tr>
+              <td style="text-align: right; font-weight: bold;">Total</td>
+              <td style="text-align: right; font-weight: bold;">₹${Number(voucher.amount).toFixed(2)}</td>
             </tr>
           </tbody>
         </table>
@@ -98,26 +120,84 @@ const VoucherList = ({ type, companyId }: VoucherListProps) => {
           <head>
             <title>Voucher ${voucher.voucher_number}</title>
             <style>
-              body { font-family: Arial, sans-serif; padding: 20px; }
-              h1 { color: #333; }
-              table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-              th, td { border: 1px solid #ddd; padding: 8px; }
-              th { background-color: #f2f2f2; }
+              body { 
+                font-family: Arial, sans-serif; 
+                padding: 20px;
+                max-width: 800px;
+                margin: 0 auto;
+              }
+              .header { 
+                text-align: center;
+                margin-bottom: 20px;
+                padding: 10px;
+                border-bottom: 2px solid #333;
+              }
+              .voucher-number {
+                text-align: left;
+                margin: 10px 0;
+                font-size: 14px;
+              }
+              .info-box {
+                border: 1px solid #ddd;
+                padding: 10px;
+                margin: 10px 0;
+                border-radius: 4px;
+              }
+              .info-container {
+                display: flex;
+                justify-content: space-between;
+                margin: 20px 0;
+              }
+              table { 
+                width: 100%; 
+                border-collapse: collapse; 
+                margin: 20px 0; 
+              }
+              th, td { 
+                border: 1px solid #ddd; 
+                padding: 8px; 
+              }
+              th { 
+                background-color: #f2f2f2; 
+              }
+              .narration-box {
+                margin-top: 20px;
+                padding: 10px;
+                border: 1px solid #ddd;
+                border-radius: 4px;
+              }
             </style>
           </head>
           <body>
-            <div style="text-align: center; margin-bottom: 20px;">
-              <h2>${companyData.name}</h2>
-              <p>${companyData.mobile_number}</p>
+            <div class="header">
+              <h2>${type.charAt(0).toUpperCase() + type.slice(1)} Voucher</h2>
             </div>
-            <h3>${type.charAt(0).toUpperCase() + type.slice(1)} Voucher</h3>
-            <p><strong>Voucher Number:</strong> ${voucher.voucher_number}</p>
-            <p><strong>Date:</strong> ${new Date(voucher.date).toLocaleDateString()}</p>
-            <p><strong>Party:</strong> ${voucher.parties.name}</p>
-            <p><strong>Amount:</strong> ₹${voucher.amount}</p>
-            ${itemsTable}
-            <p><strong>Narration:</strong> ${voucher.narration || "-"}</p>
+            
+            <div class="voucher-number">
+              <strong>Voucher No: </strong>${voucher.voucher_number}
+              <span style="float: right;">
+                <strong>Date: </strong>${new Date(voucher.date).toLocaleDateString()}
+              </span>
+            </div>
 
+            <div class="info-container">
+              <div class="info-box" style="width: 45%;">
+                <h4 style="margin: 0 0 10px 0;">Company Details</h4>
+                <p style="margin: 5px 0;"><strong>${companyData.name}</strong></p>
+                <p style="margin: 5px 0;">Contact: ${companyData.mobile_number}</p>
+              </div>
+              
+              <div class="info-box" style="width: 45%;">
+                <h4 style="margin: 0 0 10px 0;">Party Details</h4>
+                <p style="margin: 5px 0;"><strong>${voucher.parties.name}</strong></p>
+              </div>
+            </div>
+
+            ${itemsTable}
+
+            <div class="narration-box">
+              <strong>Narration:</strong> ${voucher.narration || "-"}
+            </div>
           </body>
         </html>
       `);
