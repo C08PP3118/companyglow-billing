@@ -73,7 +73,7 @@ const Ledger = () => {
     
     const { data: partyData } = await supabase
       .from("parties")
-      .select("opening_balance")
+      .select("opening_balance, type")
       .eq("id", selectedParty)
       .single();
     
@@ -92,12 +92,24 @@ const Ledger = () => {
       let debit = 0;
       let credit = 0;
       
-      if (voucher.type === "sales" || voucher.type === "payment") {
-        debit = voucher.amount;
-        runningBalance += voucher.amount;
-      } else if (voucher.type === "purchase" || voucher.type === "receipt") {
-        credit = voucher.amount;
-        runningBalance -= voucher.amount;
+      // For customers: sales/payment increase balance (debit), purchase/receipt decrease (credit)
+      // For suppliers: purchase/receipt increase balance (credit), sales/payment decrease (debit)
+      if (partyData?.type === "customer") {
+        if (voucher.type === "sales" || voucher.type === "payment") {
+          debit = voucher.amount;
+          runningBalance += voucher.amount;
+        } else if (voucher.type === "receipt") {
+          credit = voucher.amount;
+          runningBalance -= voucher.amount;
+        }
+      } else if (partyData?.type === "supplier") {
+        if (voucher.type === "purchase" || voucher.type === "receipt") {
+          credit = voucher.amount;
+          runningBalance += voucher.amount;
+        } else if (voucher.type === "payment") {
+          debit = voucher.amount;
+          runningBalance -= voucher.amount;
+        }
       }
       
       ledger.push({

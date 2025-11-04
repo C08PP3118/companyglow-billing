@@ -138,6 +138,44 @@ const VoucherForm = ({ type, companyId, onClose }: VoucherFormProps) => {
 
       const totalAmount = showItems ? calculateTotal() : parseFloat(formData.amount);
 
+      // Check if party is a supplier and validate balance
+      if (type === "payment") {
+        const { data: partyData } = await supabase
+          .from("parties")
+          .select("type, opening_balance")
+          .eq("id", formData.party_id)
+          .single();
+
+        if (partyData?.type === "supplier") {
+          // Get all vouchers for this supplier
+          const { data: existingVouchers } = await supabase
+            .from("vouchers")
+            .select("type, amount")
+            .eq("party_id", formData.party_id);
+
+          // Calculate current balance
+          let currentBalance = partyData.opening_balance || 0;
+          existingVouchers?.forEach((v) => {
+            if (v.type === "purchase" || v.type === "receipt") {
+              currentBalance += v.amount;
+            } else if (v.type === "payment") {
+              currentBalance -= v.amount;
+            }
+          });
+
+          // Check if payment would make balance negative
+          if (currentBalance - totalAmount < 0) {
+            toast({
+              title: "Error",
+              description: "Payment amount exceeds supplier balance. Supplier balance cannot be negative.",
+              variant: "destructive",
+            });
+            setLoading(false);
+            return;
+          }
+        }
+      }
+
       const { data: voucherData, error: voucherError } = await supabase
         .from("vouchers")
         .insert([{
