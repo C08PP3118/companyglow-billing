@@ -71,33 +71,50 @@ const Ledger = () => {
     
     setLoading(true);
     
-    const { data: partyData } = await supabase
+    const { data: partyData, error: partyError } = await supabase
       .from("parties")
-      .select("opening_balance")
+      .select("opening_balance, type")
       .eq("id", selectedParty)
       .single();
     
+    if (partyError || !partyData) {
+      setLoading(false);
+      return;
+    }
+
     setOpeningBalance(partyData?.opening_balance || 0);
 
     const { data: vouchers } = await supabase
       .from("vouchers")
       .select("*")
       .eq("party_id", selectedParty)
-      .order("date", { ascending: true });
+      .order("date", { ascending: true })
+      .order("created_at", { ascending: true });
     
     const ledger = [];
     let runningBalance = partyData?.opening_balance || 0;
     
     for (const voucher of vouchers || []) {
+      const openingForVoucher = runningBalance;
       let debit = 0;
       let credit = 0;
       
-      if (voucher.type === "sales" || voucher.type === "payment") {
-        debit = voucher.amount;
-        runningBalance += voucher.amount;
-      } else if (voucher.type === "purchase" || voucher.type === "receipt") {
-        credit = voucher.amount;
-        runningBalance -= voucher.amount;
+      if (partyData.type === 'customer') {
+        if (voucher.type === "sales") { // Amount receivable increases
+          debit = voucher.amount;
+          runningBalance += voucher.amount;
+        } else if (voucher.type === "receipt") { // Amount received, so balance decreases
+          credit = voucher.amount;
+          runningBalance -= voucher.amount;
+        }
+      } else if (partyData.type === 'supplier') {
+        if (voucher.type === "purchase") { // Amount payable increases
+          credit = voucher.amount;
+          runningBalance += voucher.amount;
+        } else if (voucher.type === "payment") { // Amount paid, so balance decreases
+          debit = voucher.amount;
+          runningBalance -= voucher.amount;
+        }
       }
       
       ledger.push({
@@ -107,10 +124,18 @@ const Ledger = () => {
         narration: voucher.narration,
         debit,
         credit,
-        balance: runningBalance,
+        openingBalance: openingForVoucher,
+        balance: runningBalance
       });
     }
-    
+
+    // Set the opening balance for the summary card. If there are transactions,
+    // it should be the opening balance of the first one. Otherwise, it's the party's initial balance.
+    if (ledger.length > 0) {
+      setOpeningBalance(ledger[0].openingBalance);
+    } else {
+      setOpeningBalance(partyData.opening_balance || 0);
+    }
     setLedgerData(ledger);
     setLoading(false);
   };
@@ -157,24 +182,6 @@ const Ledger = () => {
           <>
             <Card>
               <CardHeader>
-                <CardTitle>Balance Summary</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-1">
-                    <p className="text-sm text-muted-foreground">Opening Balance</p>
-                    <p className="text-2xl font-bold">₹{openingBalance.toFixed(2)}</p>
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-sm text-muted-foreground">Closing Balance</p>
-                    <p className="text-2xl font-bold">₹{calculateClosingBalance().toFixed(2)}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
                 <CardTitle>Transaction History</CardTitle>
               </CardHeader>
               <CardContent>
@@ -187,6 +194,7 @@ const Ledger = () => {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Date</TableHead>
+                        <TableHead className="text-right">Opening Balance</TableHead>
                         <TableHead>Voucher No.</TableHead>
                         <TableHead>Type</TableHead>
                         <TableHead>Narration</TableHead>
@@ -199,6 +207,9 @@ const Ledger = () => {
                       {ledgerData.map((entry, index) => (
                         <TableRow key={index}>
                           <TableCell>{format(new Date(entry.date), "dd/MM/yyyy")}</TableCell>
+                          <TableCell className="text-right">
+                            ₹{entry.openingBalance.toFixed(2)}
+                          </TableCell>
                           <TableCell>{entry.voucher_number}</TableCell>
                           <TableCell className="capitalize">{entry.type}</TableCell>
                           <TableCell>{entry.narration || "-"}</TableCell>
@@ -217,6 +228,20 @@ const Ledger = () => {
                   </Table>
                 )}
               </CardContent>
+            </Card>
+            <Card>
+                <div className="flex justify-end space-y-6">
+              <CardHeader>
+                <CardTitle>Closing Balance: </CardTitle>
+              </CardHeader>
+              <CardContent>
+                  {/* <div className="space-y-1">
+                    <p className="text-sm text-muted-foreground">Opening Balance</p>
+                    <p className="text-2xl font-bold">₹{openingBalance.toFixed(2)}</p>
+                  </div> */}
+                    <p className="text-2xl font-bold">₹{calculateClosingBalance().toFixed(2)}</p>
+              </CardContent>
+                </div>
             </Card>
           </>
         )}

@@ -46,35 +46,27 @@ const Dashboard = () => {
   useEffect(() => {
     if (!company) return;
 
-    let channel: any;
-
-    const setupRealtime = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session || !company) return;
-
-      channel = supabase
-        .channel('dashboard-vouchers')
-        .on(
-          'postgres_changes',
-          {
-            event: '*',
-            schema: 'public',
-            table: 'vouchers',
-            filter: `company_id=eq.${company.id}`,
-          },
-          () => {
-            loadDashboardData(session.user.id, company.id);
-          }
-        )
-        .subscribe();
-    };
-
-    setupRealtime();
+    const channel = supabase
+      .channel('public:vouchers')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'vouchers', filter: `company_id=eq.${company.id}` },
+        (payload) => {
+          console.log('Change received!', payload);
+          checkAuth();
+        }
+      )
+      .subscribe((status, err) => {
+        if (status === 'SUBSCRIBED') {
+          console.log('Subscribed to vouchers channel');
+        }
+        if (err) {
+          console.error('Subscription error:', err);
+        }
+      });
 
     return () => {
-      if (channel) {
-        supabase.removeChannel(channel);
-      }
+      supabase.removeChannel(channel);
     };
   }, [company]);
 
@@ -124,7 +116,11 @@ const Dashboard = () => {
     };
 
     vouchers?.forEach((voucher) => {
-      newStats[voucher.type] += Number(voucher.amount);
+      // Map singular voucher types to plural stat keys
+      if (voucher.type === 'sales') newStats.sales += Number(voucher.amount);
+      if (voucher.type === 'purchase') newStats.purchases += Number(voucher.amount);
+      if (voucher.type === 'receipt') newStats.receipts += Number(voucher.amount);
+      if (voucher.type === 'payment') newStats.payments += Number(voucher.amount);
     });
 
     setStats(newStats);

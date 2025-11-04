@@ -17,6 +17,7 @@ const VoucherList = ({ type, companyId }: VoucherListProps) => {
   useEffect(() => {
     if (companyId) {
       loadVouchers();
+      
     }
   }, [type, companyId]);
 
@@ -26,7 +27,11 @@ const VoucherList = ({ type, companyId }: VoucherListProps) => {
       .from("vouchers")
       .select(`
         *,
-        parties (name)
+        parties (name),
+        voucher_items (
+          *,
+          items (name)
+        )
       `)
       .eq("company_id", companyId)
       .eq("type", type)
@@ -36,7 +41,56 @@ const VoucherList = ({ type, companyId }: VoucherListProps) => {
     setLoading(false);
   };
 
-  const handlePrint = (voucher: any) => {
+  const handlePrint = async (voucher: any) => {
+    const { data: companyData, error: companyError } = await supabase
+      .from("companies")
+      .select("name, mobile_number")
+      .eq("id", companyId)
+      .single();
+
+    if (companyError) {
+      console.error("Error fetching company details:", companyError);
+      // Handle error, maybe show a toast message
+      return;
+    }
+
+    let itemsTable = "";
+    if ((type === "sales" || type === "purchase") && voucher.voucher_items.length > 0) {
+      const itemsRows = voucher.voucher_items
+        .map(
+          (item: any) => `
+        <tr>
+          <td>${item.items.name}</td>
+          <td style="text-align: right;">${item.quantity}</td>
+          <td style="text-align: right;">${Number(item.rate).toFixed(2)}</td>
+          <td style="text-align: right;">${Number(item.amount).toFixed(2)}</td>
+        </tr>
+      `
+        )
+        .join("");
+
+      itemsTable = `
+        <h2>Items</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Item Name</th>
+              <th style="text-align: right;">Quantity</th>
+              <th style="text-align: right;">Rate</th>
+              <th style="text-align: right;">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${itemsRows}
+            <tr>
+              <td colspan="3" style="text-align: right; font-weight: bold;">Grand Total</td>
+              <td style="text-align: right; font-weight: bold;">${Number(voucher.amount).toFixed(2)}</td>
+            </tr>
+          </tbody>
+        </table>
+      `;
+    }
+
     const printWindow = window.open("", "_blank");
     if (printWindow) {
       printWindow.document.write(`
@@ -47,17 +101,23 @@ const VoucherList = ({ type, companyId }: VoucherListProps) => {
               body { font-family: Arial, sans-serif; padding: 20px; }
               h1 { color: #333; }
               table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-              th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+              th, td { border: 1px solid #ddd; padding: 8px; }
               th { background-color: #f2f2f2; }
             </style>
           </head>
           <body>
-            <h1>${type.charAt(0).toUpperCase() + type.slice(1)} Voucher</h1>
+            <div style="text-align: center; margin-bottom: 20px;">
+              <h2>${companyData.name}</h2>
+              <p>${companyData.mobile_number}</p>
+            </div>
+            <h3>${type.charAt(0).toUpperCase() + type.slice(1)} Voucher</h3>
             <p><strong>Voucher Number:</strong> ${voucher.voucher_number}</p>
             <p><strong>Date:</strong> ${new Date(voucher.date).toLocaleDateString()}</p>
             <p><strong>Party:</strong> ${voucher.parties.name}</p>
             <p><strong>Amount:</strong> ₹${voucher.amount}</p>
-            <p><strong>Narration:</strong> ${voucher.narration || "N/A"}</p>
+            ${itemsTable}
+            <p><strong>Narration:</strong> ${voucher.narration || "-"}</p>
+
           </body>
         </html>
       `);
