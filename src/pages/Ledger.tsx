@@ -9,6 +9,117 @@ import { Label } from "@/components/ui/label";
 import { format } from "date-fns";
 
 const Ledger = () => {
+  const navigate = useNavigate();
+  const [companyId, setCompanyId] = useState<string>("");
+  const [parties, setParties] = useState<any[]>([]);
+  const [selectedParty, setSelectedParty] = useState<string>("");
+  const [ledgerData, setLedgerData] = useState<any[]>([]);
+  const [openingBalance, setOpeningBalance] = useState<number>(0);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    checkAuth();
+  }, []);
+
+  useEffect(() => {
+    if (companyId) {
+      loadParties();
+    }
+  }, [companyId]);
+
+  useEffect(() => {
+    if (selectedParty) {
+      loadLedger();
+    }
+  }, [selectedParty]);
+
+  const checkAuth = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    
+    if (!session) {
+      navigate("/auth");
+      return;
+    }
+
+    const { data: companies } = await supabase
+      .from("companies")
+      .select("id")
+      .eq("user_id", session.user.id)
+      .limit(1)
+      .single();
+
+    if (!companies) {
+      navigate("/company-setup");
+      return;
+    }
+
+    setCompanyId(companies.id);
+  };
+
+  const loadParties = async () => {
+    const { data } = await supabase
+      .from("parties")
+      .select("*")
+      .eq("company_id", companyId)
+      .order("name");
+    
+    setParties(data || []);
+  };
+
+  const loadLedger = async () => {
+    if (!selectedParty) return;
+    
+    setLoading(true);
+    
+    const { data: partyData } = await supabase
+      .from("parties")
+      .select("opening_balance")
+      .eq("id", selectedParty)
+      .single();
+    
+    setOpeningBalance(partyData?.opening_balance || 0);
+
+    const { data: vouchers } = await supabase
+      .from("vouchers")
+      .select("*")
+      .eq("party_id", selectedParty)
+      .order("date", { ascending: true });
+    
+    const ledger = [];
+    let runningBalance = partyData?.opening_balance || 0;
+    
+    for (const voucher of vouchers || []) {
+      let debit = 0;
+      let credit = 0;
+      
+      if (voucher.type === "sales" || voucher.type === "payment") {
+        debit = voucher.amount;
+        runningBalance += voucher.amount;
+      } else if (voucher.type === "purchase" || voucher.type === "receipt") {
+        credit = voucher.amount;
+        runningBalance -= voucher.amount;
+      }
+      
+      ledger.push({
+        date: voucher.date,
+        voucher_number: voucher.voucher_number,
+        type: voucher.type,
+        narration: voucher.narration,
+        debit,
+        credit,
+        balance: runningBalance,
+      });
+    }
+    
+    setLedgerData(ledger);
+    setLoading(false);
+  };
+
+  const calculateClosingBalance = () => {
+    if (ledgerData.length === 0) return openingBalance;
+    return ledgerData[ledgerData.length - 1].balance;
+  };
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
