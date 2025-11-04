@@ -189,7 +189,7 @@ const Reports = () => {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
+      <div className="space-y-6 justify-between">
         <div>
           <h1 className="text-3xl font-bold">Reports & Analytics</h1>
           <p className="text-muted-foreground">Visualize your business performance</p>
@@ -307,41 +307,6 @@ const Reports = () => {
                 </CardContent>
               </Card>
             </div>
-
-            {/* Cash Flow Chart */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Cash Flow Analysis</CardTitle>
-                <CardDescription>Receipts vs Payments over time</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ChartContainer config={chartConfig} className="h-[300px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={chartData}>
-                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                      <XAxis dataKey="date" className="text-xs" />
-                      <YAxis className="text-xs" />
-                      <ChartTooltip content={<ChartTooltipContent />} />
-                      <Legend />
-                      <Line
-                        type="monotone"
-                        dataKey="receipts"
-                        stroke={COLORS.receipts}
-                        strokeWidth={2}
-                        name="Receipts"
-                      />
-                      <Line
-                        type="monotone"
-                        dataKey="payments"
-                        stroke={COLORS.payments}
-                        strokeWidth={2}
-                        name="Payments"
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </ChartContainer>
-              </CardContent>
-            </Card>
           </div>
         </Tabs>
       </div>

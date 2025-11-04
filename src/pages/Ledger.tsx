@@ -235,10 +235,6 @@ const Ledger = () => {
                 <CardTitle>Closing Balance: </CardTitle>
               </CardHeader>
               <CardContent>
-                  {/* <div className="space-y-1">
-                    <p className="text-sm text-muted-foreground">Opening Balance</p>
-                    <p className="text-2xl font-bold">₹{openingBalance.toFixed(2)}</p>
-                  </div> */}
                     <p className="text-2xl font-bold">₹{calculateClosingBalance().toFixed(2)}</p>
               </CardContent>
                 </div>
